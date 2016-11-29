@@ -4,18 +4,36 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 /**
- * Created by xinle on 16-11-14.
+ * Created by xinle on 16-11-25.
  */
 
-public class Book implements Parcelable {
+public class Book implements Parcelable{
 
     public int bookId;
+
     public String bookName;
 
-    public Book(int bookId, String bookName) {
-        this.bookName = bookName;
+    public Book(String bookName,int bookId) {
         this.bookId = bookId;
+        this.bookName = bookName;
     }
+
+    protected Book(Parcel in) {
+        bookId = in.readInt();
+        bookName = in.readString();
+    }
+
+    public static final Creator<Book> CREATOR = new Creator<Book>() {
+        @Override
+        public Book createFromParcel(Parcel in) {
+            return new Book(in);
+        }
+
+        @Override
+        public Book[] newArray(int size) {
+            return new Book[size];
+        }
+    };
 
     @Override
     public int describeContents() {
@@ -26,25 +44,5 @@ public class Book implements Parcelable {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeInt(bookId);
         dest.writeString(bookName);
-
     }
-
-    public static final Parcelable.Creator<Book> CREATOR = new Parcelable.Creator<Book>() {
-        @Override
-        public Book[] newArray(int size) {
-            return new Book[0];
-        }
-
-        @Override
-        public Book createFromParcel(Parcel source) {
-            return new Book(source);
-        }
-
-    };
-
-    private Book(Parcel in) {
-        bookId = in.readInt();
-        bookName = in.readString();
-    }
-
 }

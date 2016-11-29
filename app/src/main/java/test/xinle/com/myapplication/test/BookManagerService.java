@@ -1,9 +1,10 @@
-package test.xinle.com.myapplication.book;
+package test.xinle.com.myapplication.test;
 
 import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 
 import java.util.List;
@@ -15,22 +16,16 @@ import test.xinle.com.myapplication.aidl.IBookManager;
 import test.xinle.com.myapplication.aidl.IOnNewBookArrivedListener;
 
 /**
- * Created by xinle on 16-11-14.
+ * Created by xinle on 16-11-28.
  */
 
 public class BookManagerService extends Service {
 
-
-    private static final String TAG = "BMS";
-
-    private AtomicBoolean mIsServiceDestoryed = new AtomicBoolean(false);
-
+    private static final String TAG = "BMG";
     private CopyOnWriteArrayList<Book> mBookList = new CopyOnWriteArrayList<>();
-
-    private CopyOnWriteArrayList<IOnNewBookArrivedListener> mListenerList = new CopyOnWriteArrayList<>();
-
+    private AtomicBoolean mIsServiceDestoryed = new AtomicBoolean(false);
+    private RemoteCallbackList<IOnNewBookArrivedListener> mlisteners = new RemoteCallbackList<>();
     private Binder mBinder = new IBookManager.Stub() {
-
         @Override
         public List<Book> getBookList() throws RemoteException {
             return mBookList;
@@ -43,35 +38,33 @@ public class BookManagerService extends Service {
 
         @Override
         public void registerListener(IOnNewBookArrivedListener listener) throws RemoteException {
-            if (!mListenerList.contains(listener)) {
-                mListenerList.add(listener);
-            } else {
-
-            }
+            mlisteners.register(listener);
         }
 
         @Override
         public void unregisterListener(IOnNewBookArrivedListener listener) throws RemoteException {
-
-            if (mListenerList.contains(listener)) {
-                mListenerList.remove(listener);
-            } else {
-
-            }
+            mlisteners.unregister(listener);
         }
     };
+
+
+    private void onNewBookArrived(Book book) throws RemoteException {
+        mBookList.add(book);
+        final int N = mlisteners.beginBroadcast();
+        for (int i = 0; i < N; i++) {
+            IOnNewBookArrivedListener listener = mlisteners.getBroadcastItem(i);
+            listener.onBookArrived(book);
+        }
+        mlisteners.finishBroadcast();
+    }
+
 
     @Override
     public void onCreate() {
         super.onCreate();
-        mBookList.add(new Book(1, "Android"));
-        mBookList.add(new Book(2, "IOS"));
-    }
-
-    @Override
-    public void onDestroy() {
-        mIsServiceDestoryed.set(true);
-        super.onDestroy();
+        mBookList.add(new Book("Android", 1));
+        mBookList.add(new Book("IOS", 2));
+        new Thread(new ServiceWorker()).start();
     }
 
     @Override
@@ -79,35 +72,25 @@ public class BookManagerService extends Service {
         return mBinder;
     }
 
-
-    private class ServiceWorker implements Runnable {
+    private  class ServiceWorker implements Runnable {
 
         @Override
         public void run() {
-
             while (!mIsServiceDestoryed.get()) {
                 try {
                     Thread.sleep(5 * 1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+
                 int bookId = mBookList.size() + 1;
-                Book newBook = new Book(bookId, "new book＃" + bookId);
+                Book book = new Book("new book#", bookId);
                 try {
-                    onNewBookArrived(newBook);
+                    onNewBookArrived(book);
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
             }
-        }
-    }
-
-
-    private void onNewBookArrived(Book book) throws RemoteException {
-        mBookList.add(book);
-        for (int i = 0; i < mBookList.size(); i++) {
-            IOnNewBookArrivedListener listener = mListenerList.get(i);
-            listener.onNewBookArrivedListener(book);
         }
     }
 }
